@@ -1,0 +1,13 @@
+# PyTorch com CUDA 12.8 (obrigatório para placas RTX 50xx / Blackwell) — instale antes:
+#   pip install torch --index-url https://download.pytorch.org/whl/cu128
+torch>=2.7
+transformers>=4.56
+peft>=0.17
+datasets>=3.0
+accelerate>=1.0
+gradio>=5.0
+scikit-learn
+pandas
+pyarrow
+matplotlib
+nvidia-ml-py

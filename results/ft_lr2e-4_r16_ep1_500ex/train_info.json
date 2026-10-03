@@ -1,0 +1,25 @@
+{
+  "run_name": "ft_lr2e-4_r16_ep1_500ex",
+  "model": "Qwen/Qwen2.5-1.5B-Instruct",
+  "hyperparams": {
+    "lr": 0.0002,
+    "epochs": 1.0,
+    "batch_size": 8,
+    "grad_accum": 2,
+    "lora_r": 16,
+    "lora_alpha": 32,
+    "lora_dropout": 0.05,
+    "max_len": 320,
+    "train_samples": 500,
+    "seed": 42
+  },
+  "train_examples": 500,
+  "trainable_params": 18464768,
+  "total_params": 1562179072,
+  "train_time_s": 31.6,
+  "peak_gpu_mem_gb": 6.23,
+  "gpu": "NVIDIA GeForce RTX 5070",
+  "cuda": "12.8",
+  "torch": "2.11.0+cu128",
+  "final_eval_loss": 0.23089823126792908
+}

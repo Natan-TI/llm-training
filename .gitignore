@@ -1,0 +1,9 @@
+.venv/
+__pycache__/
+*.pyc
+data/
+outputs/
+results/*/predictions.jsonl
+.gradio/
+experiments.log
+.claude/

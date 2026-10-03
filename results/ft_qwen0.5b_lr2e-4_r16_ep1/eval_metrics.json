@@ -1,0 +1,45 @@
+{
+  "run_name": "ft_qwen0.5b_lr2e-4_r16_ep1",
+  "model": "Qwen/Qwen2.5-0.5B-Instruct",
+  "adapter": "outputs/ft_qwen0.5b_lr2e-4_r16_ep1",
+  "temperature": 0.0,
+  "n": 900,
+  "accuracy": 0.8189,
+  "f1_macro": 0.8175,
+  "invalid_outputs": 0,
+  "eval_time_s": 13.8,
+  "reviews_per_s": 65.4,
+  "report": {
+    "negativo": {
+      "precision": 0.8758169934640523,
+      "recall": 0.8933333333333333,
+      "f1-score": 0.8844884488448845,
+      "support": 300.0
+    },
+    "neutro": {
+      "precision": 0.7508896797153025,
+      "recall": 0.7033333333333334,
+      "f1-score": 0.7263339070567987,
+      "support": 300.0
+    },
+    "positivo": {
+      "precision": 0.8242811501597445,
+      "recall": 0.86,
+      "f1-score": 0.8417618270799347,
+      "support": 300.0
+    },
+    "accuracy": 0.8188888888888889,
+    "macro avg": {
+      "precision": 0.8169959411130332,
+      "recall": 0.8188888888888889,
+      "f1-score": 0.8175280609938728,
+      "support": 900.0
+    },
+    "weighted avg": {
+      "precision": 0.8169959411130332,
+      "recall": 0.8188888888888889,
+      "f1-score": 0.8175280609938725,
+      "support": 900.0
+    }
+  }
+}
