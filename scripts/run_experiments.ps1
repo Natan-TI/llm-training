@@ -42,6 +42,10 @@ if (-not (Done "ft_lr2e-4_r16_ep1_temp1.0")) {
     Run src/evaluate.py --run-name ft_lr2e-4_r16_ep1_temp1.0 --adapter outputs/ft_lr2e-4_r16_ep1 --temperature 1.0
 }
 
-# 4) Tabela e gráficos
+# 4) Tabela, gráficos e significância estatística
 Run src/compare_results.py
+Run src/significance.py
+
+# 5) Exporta o adaptador recomendado para models/ (versionado, usado pelo frontend)
+Run src/export_adapter.py --run-name ft_lr2e-4_r16_ep1
 Write-Host "`nEXPERIMENTOS CONCLUIDOS" -ForegroundColor Green

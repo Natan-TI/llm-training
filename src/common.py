@@ -19,9 +19,11 @@ import torch  # noqa: E402
 ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = ROOT / "data"
 OUTPUTS_DIR = ROOT / "outputs"   # adaptadores LoRA treinados (não versionados)
+MODELS_DIR = ROOT / "models"     # adaptador recomendado, exportado em bf16 (versionado)
 RESULTS_DIR = ROOT / "results"   # métricas, logs e gráficos (versionados)
 
 DEFAULT_MODEL = "Qwen/Qwen2.5-1.5B-Instruct"
+RECOMMENDED_ADAPTER = "ft_lr2e-4_r16_ep1"  # configuração escolhida (ver README, seção 6)
 LABELS = ["negativo", "neutro", "positivo"]
 
 SYSTEM_PROMPT = (

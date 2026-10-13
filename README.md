@@ -99,26 +99,32 @@ python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 
 # 2) PyTorch com CUDA 12.8 (obrigatório para RTX série 50 / Blackwell; serve para séries 20/30/40 também)
-pip install torch --index-url https://download.pytorch.org/whl/cu128
+pip install torch==2.11.0 --index-url https://download.pytorch.org/whl/cu128
 pip install -r requirements.txt
 
-# 3) Verificar a GPU (tire o print desta saída no terminal do VSCode)
+# 3) Verificar a GPU
 python src/check_gpu.py
 
-# 4) Preparar os dados
-python src/prepare_data.py
+# 4) Frontend — já funciona logo após clonar, com o modelo treinado incluído em models/
+python app.py      # http://127.0.0.1:7860
+```
 
-# 5a) Rodar TODOS os experimentos + comparação
+Para **reproduzir o treino e os experimentos** (~50 min na RTX 5070):
+
+```powershell
+# Tudo de uma vez: dados + 11 experimentos + tabela/gráficos + significância + exportação do modelo
 .\scripts\run_experiments.ps1
 
-# 5b) ...ou um experimento isolado
+# ...ou passo a passo
+python src/prepare_data.py
 python src/train.py --run-name meu_teste --lr 2e-4 --lora-r 16 --epochs 1
 python src/evaluate.py --run-name meu_teste --adapter outputs/meu_teste
 python src/compare_results.py
-
-# 6) Frontend
-python app.py      # http://127.0.0.1:7860
+python src/significance.py
 ```
+
+> Todas as versões de bibliotecas estão fixadas em `requirements.txt`. O código usa a API do
+> **transformers 5.x**; com a versão 4.x o treino não roda.
 
 > **Versão do CUDA:** o PyTorch já traz o runtime CUDA embutido na wheel; basta ter o **driver NVIDIA**
 > atualizado. Escolha o índice conforme a placa: RTX 50xx → `cu128` ou mais novo; RTX 20/30/40 → `cu126`
@@ -134,10 +140,13 @@ python app.py      # http://127.0.0.1:7860
 │   ├── prepare_data.py       # download e splits balanceados
 │   ├── train.py              # fine-tuning LoRA
 │   ├── evaluate.py           # métricas, matriz de confusão, predições
-│   └── compare_results.py    # tabela + gráficos comparativos
+│   ├── compare_results.py    # tabela + gráficos comparativos
+│   ├── significance.py       # teste de significância estatística (bootstrap)
+│   └── export_adapter.py     # exporta o adaptador escolhido para models/ (bf16)
 ├── scripts/run_experiments.ps1
-├── results/                  # métricas e gráficos de cada experimento (versionado)
-├── outputs/                  # adaptadores LoRA treinados (não versionado)
+├── models/                   # adaptador LoRA recomendado, pronto para uso (versionado, 35 MB)
+├── results/                  # métricas, predições e gráficos de cada experimento (versionado)
+├── outputs/                  # todos os adaptadores gerados pelos experimentos (não versionado)
 └── docs/prints/              # prints para a entrega
 ```
 
@@ -186,6 +195,30 @@ tem em `results/<nome>/` as métricas por classe, a matriz de confusão, o log d
 ![Comparação F1](results/comparison_f1.png)
 ![Curvas de loss](results/loss_curves.png)
 
+### As diferenças são reais? Teste de significância
+
+Com 900 exemplos de teste, a própria amostra tem margem de erro (o F1 do modelo ⭐ tem IC 95% de
+0,799 a 0,848). Para não tirar conclusões de ruído, usamos **bootstrap pareado** (`src/significance.py`):
+reamostramos o conjunto de teste 2.000 vezes, com as mesmas amostras para os dois modelos, e calculamos o
+intervalo de confiança de 95% da diferença de F1 em relação à referência ⭐. Se o intervalo contém 0,
+a diferença **não é significativa**.
+
+| Experimento | F1 macro | Diferença vs ⭐ | IC 95% da diferença | Conclusão |
+|---|---|---|---|---|
+| ft_lr2e-4_r16_ep3 | 0.827 | +0.002 | [-0.015, +0.021] | empate estatístico |
+| ft_qwen0.5b_lr2e-4_r16_ep1 | 0.818 | -0.007 | [-0.023, +0.008] | empate estatístico |
+| ft_lr2e-4_r4_ep1 | 0.817 | -0.008 | [-0.020, +0.004] | empate estatístico |
+| ft_lr5e-5_r16_ep1 | 0.815 | -0.009 | [-0.022, +0.004] | empate estatístico |
+| ft_lr1e-3_r16_ep1 | 0.813 | -0.011 | [-0.031, +0.008] | empate estatístico |
+| ft_lr2e-4_r64_ep1 | 0.811 | -0.013 | [-0.027, -0.000] | limítrofe (IC encosta no 0) |
+| ft_lr2e-4_r16_ep1_temp1.0 | 0.750 | -0.074 | [-0.100, -0.049] | **pior** (significativo) |
+| ft_lr2e-4_r16_ep1_500ex | 0.696 | -0.129 | [-0.159, -0.098] | **pior** (significativo) |
+| base_qwen1.5b | 0.573 | -0.251 | [-0.280, -0.221] | **pior** (significativo) |
+| base_qwen0.5b | 0.525 | -0.299 | [-0.325, -0.272] | **pior** (significativo) |
+
+Tabela completa em [`results/significance.md`](results/significance.md). As predições de todos os
+experimentos estão em `results/<nome>/predictions.jsonl`, então qualquer número aqui pode ser conferido.
+
 ### Análise
 
 1. **O fine-tuning funciona:** F1 macro de **0,573 → 0,825** (+25 pontos) no modelo de 1,5B, com
@@ -194,21 +227,25 @@ tem em `results/<nome>/` as métricas por classe, a matriz de confusão, o log d
    (recall de **8%**) — força tudo para positivo/negativo. Após o fine-tuning, o recall de neutro vai a **71%**.
 3. **Formato da resposta:** o Qwen-0.5B sem treino deu **32 respostas inválidas** (ex.: "Negação",
    "Neste cenário, a avaliação parece..."). Todos os modelos treinados responderam **100% no formato**.
-4. **Tamanho do modelo:** depois do fine-tuning, o **0.5B (0,818) fica quase empatado com o 1.5B
+4. **Tamanho do modelo:** depois do fine-tuning, o **0.5B (0,818) empata estatisticamente com o 1.5B
    (0,825)**, treinando 40% mais rápido e usando 30% menos VRAM. Para uma tarefa específica,
    um modelo pequeno especializado compete com um maior.
-5. **Learning rate:** 2e-4 foi o melhor. 1e-3 aprende mais rápido mas é instável (veja os picos na loss
-   de validação); 5e-5 é estável mas fica um pouco atrás em 1 época.
-6. **LoRA rank:** r=4, 16 e 64 dão resultados muito próximos (0,811–0,825). Aumentar o rank
-   (mais parâmetros) não ajudou — a tarefa precisa de pouca capacidade extra.
-7. **Épocas / overfitting:** 3 épocas deram F1 praticamente igual (0,827 vs 0,825) com **2,6× o
+5. **Learning rate:** 5e-5, 2e-4 e 1e-3 terminam **empatados estatisticamente** em F1. O que muda é a
+   estabilidade do treino: com 1e-3 a loss de validação oscila bastante (picos nas curvas acima), enquanto
+   5e-5 e 2e-4 descem de forma suave. Por isso 2e-4 é uma escolha segura, não "a melhor" em F1.
+6. **LoRA rank:** r=4 e r=16 empatam; r=64 ficou ~1,3 ponto abaixo, no limite da significância. Ou seja,
+   aumentar o rank (4× mais parâmetros treináveis que r=16) **não ajudou**: a tarefa precisa de pouca
+   capacidade extra, e r=4 já basta.
+7. **Épocas / overfitting:** 3 épocas deram F1 **estatisticamente igual** (0,827 vs 0,825) com **2,6× o
    tempo**. A loss de validação fica em ~0,15–0,16 nas duas primeiras épocas e **sobe para ~0,19 na
-   3ª época (a partir do step ~750)**, enquanto a de treino continua caindo — sinal clássico de
-   **overfitting** (o modelo fica "confiante demais" nos exemplos de treino). **1 época é a melhor escolha** (⭐).
-8. **Quantidade de dados:** com 500 exemplos o F1 cai para 0,696 — ainda melhor que o zero-shot,
-   mas mostra que mais dados importam mais que ajustar hiperparâmetros.
-9. **Temperatura:** amostrar com temperatura 1.0 derruba o F1 de 0,825 para 0,750 e volta a gerar
-   respostas inválidas. Para **classificação, usar temperatura 0** (determinístico).
+   3ª época (a partir do step ~750)**, enquanto a de treino continua caindo, sinal clássico de
+   **overfitting** (o modelo fica "confiante demais" nos exemplos de treino). Como o F1 é o mesmo,
+   **1 época é a escolha (⭐)**: mesmo resultado, 1/3 do tempo e sem overfitting.
+8. **Quantidade de dados:** com 500 exemplos o F1 cai para 0,696 (diferença significativa). Ainda é
+   melhor que o zero-shot, mas mostra que **mais dados importam mais do que ajustar hiperparâmetros**,
+   já que nenhum ajuste de LR, rank ou épocas mudou o resultado de forma significativa.
+9. **Temperatura:** amostrar com temperatura 1.0 derruba o F1 de 0,825 para 0,750 (significativo) e volta
+   a gerar respostas inválidas. Para **classificação, usar temperatura 0** (determinístico).
 
 #### Onde o modelo erra
 
@@ -224,10 +261,22 @@ Muitos "erros" são ruído do próprio rótulo, já que a nota do cliente nem se
 
 ### Conclusões
 
-- LoRA permite especializar uma LLM em minutos numa GPU doméstica, com ganho grande e mensurável.
-- A configuração recomendada é **Qwen2.5-1.5B + LoRA r=16, lr=2e-4, 1 época, temperatura 0**
-  (ou o 0.5B, se for preciso economizar recursos).
+- LoRA permite especializar uma LLM em minutos numa GPU doméstica, com ganho grande e **estatisticamente
+  significativo** (+25 pontos de F1).
+- Dentro da faixa testada, os hiperparâmetros do LoRA (LR, rank, épocas) **não mudam o resultado de forma
+  significativa**; o que importa é ter fine-tuning, ter dados suficientes e usar temperatura 0.
+- A configuração recomendada é **Qwen2.5-1.5B + LoRA r=16, lr=2e-4, 1 época, temperatura 0**, escolhida
+  por ser estável e barata, já que empata com as alternativas. O **0.5B** é uma opção equivalente quando
+  for preciso economizar recursos.
 - O limite de desempenho agora está mais nos **dados** (rótulos ruidosos da classe neutra) do que no modelo.
+
+### Modelo incluído no repositório
+
+O adaptador ⭐ está em [`models/ft_lr2e-4_r16_ep1/`](models/ft_lr2e-4_r16_ep1) para que o frontend funcione
+sem precisar treinar. O treino salva os pesos LoRA em fp32 (70,5 MB); `src/export_adapter.py` os converte
+para **bf16 (35,3 MB)**, a mesma precisão usada na inferência. Reavaliado no conjunto de teste, o modelo
+exportado obteve acurácia 0,826 / F1 0,824, contra 0,827 / 0,825 do original: **só 1 das 900 predições
+mudou**.
 
 ## 7. Frontend
 
@@ -247,8 +296,9 @@ Todos os adaptadores ficam carregados ao mesmo tempo sobre **um único** modelo 
 
 ![Frontend — aba Comparar modelos](docs/prints/frontend_comparar.jpg)
 
-> O dropdown lista o modelo base 1.5B e os adaptadores treinados sobre ele. O adaptador do Qwen-0.5B
-> usa outro modelo base e, por isso, é avaliado só via `src/evaluate.py`.
+> O dropdown lista o modelo base 1.5B, o modelo ⭐ de `models/` (selecionado por padrão) e, se você
+> rodou os experimentos, os demais adaptadores de `outputs/`. O adaptador do Qwen-0.5B usa outro modelo
+> base e, por isso, é avaliado só via `src/evaluate.py`.
 
 ## 8. Problemas encontrados e soluções
 

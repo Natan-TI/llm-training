@@ -1,13 +1,16 @@
+# Versões exatas usadas em todos os experimentos (Python 3.13, Windows 11).
+# O código usa a API do transformers 5.x — versões 4.x NÃO funcionam.
+#
 # PyTorch com CUDA 12.8 (obrigatório para placas RTX 50xx / Blackwell) — instale antes:
-#   pip install torch --index-url https://download.pytorch.org/whl/cu128
-torch>=2.7
-transformers>=4.56
-peft>=0.17
-datasets>=3.0
-accelerate>=1.0
-gradio>=5.0
-scikit-learn
-pandas
-pyarrow
-matplotlib
-nvidia-ml-py
+#   pip install torch==2.11.0 --index-url https://download.pytorch.org/whl/cu128
+torch==2.11.0
+transformers==5.18.0
+peft==0.21.2
+datasets==5.0.1
+accelerate==1.15.0
+gradio==6.29.1
+scikit-learn==1.9.1
+pandas==3.0.6
+pyarrow==25.0.1
+matplotlib==3.11.2
+nvidia-ml-py==13.615.71

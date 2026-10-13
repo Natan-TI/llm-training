@@ -12,8 +12,8 @@ from contextlib import nullcontext
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent / "src"))
-from common import (DEFAULT_MODEL, OUTPUTS_DIR, RESULTS_DIR, SYSTEM_PROMPT, build_messages,  # noqa: E402
-                    load_model, parse_label)
+from common import (DEFAULT_MODEL, MODELS_DIR, OUTPUTS_DIR, RECOMMENDED_ADAPTER,  # noqa: E402
+                    RESULTS_DIR, SYSTEM_PROMPT, build_messages, load_model, parse_label)
 
 import gradio as gr  # noqa: E402
 import torch  # noqa: E402
@@ -24,22 +24,15 @@ EMOJI = {"positivo": "😊 POSITIVO", "negativo": "😠 NEGATIVO", "neutro": "�
 
 
 def find_adapters(base_model: str) -> dict[str, Path]:
-    """Adaptadores em outputs/ treinados sobre o mesmo modelo base."""
+    """Adaptadores treinados sobre o mesmo modelo base: os versionados em models/ (disponíveis logo
+    após clonar o repositório) e os gerados localmente em outputs/ pelos experimentos."""
     found = {}
-    for d in sorted(OUTPUTS_DIR.glob("*/adapter_config.json")):
-        cfg = json.loads(d.read_text(encoding="utf-8"))
-        if cfg.get("base_model_name_or_path") == base_model:
-            found[d.parent.name] = d.parent
+    for folder in (MODELS_DIR, OUTPUTS_DIR):
+        for d in sorted(folder.glob("*/adapter_config.json")):
+            cfg = json.loads(d.read_text(encoding="utf-8"))
+            if cfg.get("base_model_name_or_path") == base_model:
+                found.setdefault(d.parent.name, d.parent)
     return found
-
-
-def best_adapter(names: list[str]) -> str | None:
-    scores = {}
-    for n in names:
-        f = RESULTS_DIR / n / "eval_metrics.json"
-        if f.exists():
-            scores[n] = json.loads(f.read_text(encoding="utf-8"))["f1_macro"]
-    return max(scores, key=scores.get) if scores else (names[0] if names else None)
 
 
 print("Carregando modelo na GPU...")
@@ -54,7 +47,7 @@ if adapters:
         model.load_adapter(adapters[n], adapter_name=n)
     model.eval()
 CHOICES = [BASE] + list(adapters)
-DEFAULT_CHOICE = best_adapter(list(adapters)) or BASE
+DEFAULT_CHOICE = RECOMMENDED_ADAPTER if RECOMMENDED_ADAPTER in adapters else CHOICES[-1]
 gpu_lock = threading.Lock()
 print(f"Pronto. Modelos disponíveis: {CHOICES}")
 
