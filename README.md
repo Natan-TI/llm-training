@@ -5,13 +5,13 @@ diferentes parâmetros, avaliar o modelo e disponibilizar um frontend para o usu
 
 ## 👥 Grupo
 
-| Nome | RA |
+| Nome | RM |
 |---|---|
-| _Integrante 1_ | |
-| _Integrante 2_ | |
-| _Integrante 3_ | |
-| _Integrante 4_ | |
-| _Integrante 5_ | |
+| Enzo Luiz Goulart | RM99666 |
+| Kayky Paschoal Ribeiro | RM99929 |
+| Lucas Yuji Farias Umada | RM99757 |
+| Natan Eguchi dos Santos | RM98720 |
+| João Pedro do Vale Cruz Novo | RM98650 |
 
 ---
 
